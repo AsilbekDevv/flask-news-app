@@ -1,3 +1,7 @@
+import eventlet
+eventlet.monkey_patch()
+
+
 import os
 import time
 from datetime import datetime # Chat vaqti uchun
