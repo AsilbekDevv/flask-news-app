@@ -1,11 +1,16 @@
 import os
 import time
+from datetime import datetime # Chat vaqti uchun
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_socketio import SocketIO, emit # Real-time chat uchun qo'shildi
 
 app = Flask(__name__)
 app.secret_key = 'super_maxfiy_kalit_soz'
+
+# Socket.IO ni ulash (Render uchun cors sozlamasi bilan)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Rasmlar va Baza sozlamalari
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
@@ -25,12 +30,11 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
-    is_main_admin = db.Column(db.Boolean, default=False) # Asosiy admin bayrog'i
-    is_blocked = db.Column(db.Boolean, default=False)    # Bloklanganlik holati
+    is_main_admin = db.Column(db.Boolean, default=False) 
+    is_blocked = db.Column(db.Boolean, default=False)    
 
     @property
     def user_code(self):
-        # Bazadagi ID ga 1000 qo'shib 4 xonali unikal ID hosil qiladi (1001, 1002, ...)
         return 1000 + self.id
 
 class News(db.Model):
@@ -38,6 +42,14 @@ class News(db.Model):
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     image = db.Column(db.String(200), nullable=True)
+
+# YANGI: Chat tarixi uchun baza modeli
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    username = db.Column(db.String(80), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Baza va Main Adminni yaratish
 with app.app_context():
@@ -69,7 +81,7 @@ def index():
     all_news = News.query.order_by(News.id.desc()).all()
     return render_template('index.html', news_list=all_news)
 
-# YANGI QO'SHILGAN ROUTE: Batafsil o'qish uchun
+
 @app.route('/news/<int:id>')
 def news_detail(id):
     if 'user_id' not in session:
@@ -82,6 +94,50 @@ def news_detail(id):
 
     news_item = News.query.get_or_404(id)
     return render_template('details.html', news=news_item)
+
+# --- YANGI: CHAT YO'NALISHLARI ---
+
+@app.route('/chat')
+def chat():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or user.is_blocked:
+        session.clear()
+        return redirect(url_for('login'))
+    
+    # Bazadan eski xabarlarni olib, chat.html ga yuborish
+    messages = ChatMessage.query.order_by(ChatMessage.timestamp.asc()).all()
+    return render_template('chat.html', messages=messages)
+
+
+@socketio.on('send_message')
+def handle_message(data):
+    if 'user_id' not in session:
+        return
+
+    user_id = session['user_id']
+    username = session.get('username', 'Anonim')
+    message_text = data.get('msg')
+
+    if message_text:
+        # Xabarni bazaga saqlash
+        new_msg = ChatMessage(user_id=user_id, username=username, message=message_text)
+        db.session.add(new_msg)
+        db.session.commit()
+
+        # Vaqtni formatlash (soat:minut)
+        time_str = datetime.utcnow().strftime('%H:%M')
+
+        # Xabarni barcha onlayn foydalanuvchilarga jonli tarqatish
+        emit('receive_message', {
+            'user': username, 
+            'msg': message_text,
+            'time': time_str
+        }, broadcast=True)
+
+# --------------------------------
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -270,4 +326,5 @@ def delete_user(id):
     return redirect(url_for('manage_users'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port)

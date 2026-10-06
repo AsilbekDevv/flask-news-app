@@ -12,6 +12,10 @@
             <a class="navbar-brand fw-bold" href="/">Yangiliklar Portali</a>
             <div>
                 <span class="text-light me-3">Foydalanuvchi: <strong>{{ session['username'] }}</strong></span>
+                
+                <!-- YANGI QO'SHILGAN CHAT TUGMASI -->
+                <a href="/chat" class="btn btn-info btn-sm me-2 text-white fw-bold">💬 Jonli Chat</a>
+
                 {% if session.get('is_admin') %}
                     <a href="/admin" class="btn btn-warning btn-sm me-2">Admin Panel</a>
                 {% endif %}
