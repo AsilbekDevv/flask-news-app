@@ -19,8 +19,19 @@
     <div class="container" style="max-width: 800px;">
         <div class="card shadow">
             <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">💬 Umumiy Jonli Chat</h5>
-                <span class="badge bg-success">Onlayn</span>
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-0 fw-bold">💬 Umumiy Jonli Chat</h5>
+                    <span class="badge bg-success">Onlayn</span>
+                </div>
+
+                <!-- Faqat Adminlar uchun tozalash tugmasi -->
+                {% if session.get('is_admin') %}
+                    <form action="{{ url_for('clear_messages') }}" method="POST" onsubmit="return confirm('Haqiqatan ham barcha xabarlarni o\'chirmoqchimisiz?');" class="m-0">
+                        <button type="submit" class="btn btn-danger btn-sm fw-bold shadow-sm">
+                            🗑️ Chatni tozalash
+                        </button>
+                    </form>
+                {% endif %}
             </div>
             
             <!-- Xabarlar oynasi (Bazada borlari shu yerda chiqadi) -->
@@ -109,6 +120,11 @@
 
             // Yangi xabar kelganda avtomatik pastga skroll qilish
             chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        // Admin chatni tozalaganda ekrandagi xabarlarni birdan yo'qotish
+        socket.on('chat_cleared', function() {
+            chatBox.innerHTML = '';
         });
     </script>
 </body>

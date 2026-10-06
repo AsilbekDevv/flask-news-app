@@ -1,20 +1,19 @@
 from gevent import monkey
 monkey.patch_all()
 
-
 import os
 import time
-from datetime import datetime # Chat vaqti uchun
+from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_socketio import SocketIO, emit # Real-time chat uchun qo'shildi
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = 'super_maxfiy_kalit_soz'
 
-# Socket.IO ni ulash (Render uchun cors sozlamasi bilan)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Socket.IO ni ulash (Render uchun cors va async_mode sozlamasi bilan)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 # Rasmlar va Baza sozlamalari
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
@@ -26,6 +25,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 db = SQLAlchemy(app)
+
+# O'zbekiston vaqtini olish uchun yordamchi funksiya (UTC+5)
+def get_uzbekistan_time():
+    uz_time = datetime.now(timezone.utc) + timedelta(hours=5)
+    return uz_time
 
 # --- MA'LUMOTLAR BAZASI MODELLARI ---
 
@@ -47,13 +51,13 @@ class News(db.Model):
     content = db.Column(db.Text, nullable=False)
     image = db.Column(db.String(200), nullable=True)
 
-# YANGI: Chat tarixi uchun baza modeli
+# Chat tarixi uchun baza modeli
 class ChatMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     username = db.Column(db.String(80), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_uzbekistan_time)
 
 # Baza va Main Adminni yaratish
 with app.app_context():
@@ -99,7 +103,7 @@ def news_detail(id):
     news_item = News.query.get_or_404(id)
     return render_template('details.html', news=news_item)
 
-# --- YANGI: CHAT YO'NALISHLARI ---
+# --- CHAT YO'NALISHLARI ---
 
 @app.route('/chat')
 def chat():
@@ -111,7 +115,6 @@ def chat():
         session.clear()
         return redirect(url_for('login'))
     
-    # Bazadan eski xabarlarni olib, chat.html ga yuborish
     messages = ChatMessage.query.order_by(ChatMessage.timestamp.asc()).all()
     return render_template('chat.html', messages=messages)
 
@@ -126,20 +129,48 @@ def handle_message(data):
     message_text = data.get('msg')
 
     if message_text:
+        # Hozirgi O'zbekiston vaqtini olish
+        current_time = get_uzbekistan_time()
+
         # Xabarni bazaga saqlash
-        new_msg = ChatMessage(user_id=user_id, username=username, message=message_text)
+        new_msg = ChatMessage(
+            user_id=user_id, 
+            username=username, 
+            message=message_text,
+            timestamp=current_time
+        )
         db.session.add(new_msg)
         db.session.commit()
 
-        # Vaqtni formatlash (soat:minut)
-        time_str = datetime.utcnow().strftime('%H:%M')
+        # Vaqtni formatlash (HH:MM)
+        time_str = current_time.strftime('%H:%M')
 
-        # Xabarni barcha onlayn foydalanuvchilarga jonli tarqatish
+        # Xabarni barcha foydalanuvchilarga tarqatish
         emit('receive_message', {
             'user': username, 
             'msg': message_text,
             'time': time_str
         }, broadcast=True)
+
+
+@app.route('/clear_messages', methods=['POST'])
+def clear_messages():
+    # Adminlik huquqini tekshirish
+    if not session.get('is_admin'):
+        flash("Sizda xabarlarni o'chirish huquqi yo'q!", "danger")
+        return redirect(url_for('chat'))
+
+    try:
+        # Bazadagi barcha xabarlarni o'chirish
+        ChatMessage.query.delete()
+        db.session.commit()
+        
+        # Barcha ulangan foydalanuvchilar ekranidan xabarlarni o'chirish signali
+        socketio.emit('chat_cleared', broadcast=True)
+    except Exception as e:
+        db.session.rollback()
+
+    return redirect(url_for('chat'))
 
 # --------------------------------
 
