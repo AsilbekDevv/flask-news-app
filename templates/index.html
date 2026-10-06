@@ -28,13 +28,21 @@
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 shadow-sm">
                         {% if news.image %}
-                            <img src="{{ url_for('static', filename='uploads/' + news.image) }}" class="card-img-top" alt="Rasm" style="height: 220px; object-fit: cover;">
+                            <a href="/news/{{ news.id }}">
+                                <img src="{{ url_for('static', filename='uploads/' + news.image) }}" class="card-img-top" alt="Rasm" style="height: 220px; object-fit: cover;">
+                            </a>
                         {% else %}
                             <div class="bg-secondary text-white text-center py-5">Rasm yo'q</div>
                         {% endif %}
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold">{{ news.title }}</h5>
-                            <p class="card-text text-muted">{{ news.content }}</p>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title fw-bold">
+                                <a href="/news/{{ news.id }}" class="text-decoration-none text-dark">{{ news.title }}</a>
+                            </h5>
+                            <!-- Matnni uzunligini qisqartirish uchun jinja filtri qo'shishingiz ham mumkin, masalan: {{ news.content[:100] }}... -->
+                            <p class="card-text text-muted mb-4">{{ news.content }}</p>
+                            
+                            <!-- Batafsil tugmasi doim pastda turishi uchun mt-auto ishlatildi -->
+                            <a href="/news/{{ news.id }}" class="btn btn-primary mt-auto align-self-start">Batafsil o'qish &rarr;</a>
                         </div>
                     </div>
                 </div>

@@ -69,6 +69,20 @@ def index():
     all_news = News.query.order_by(News.id.desc()).all()
     return render_template('index.html', news_list=all_news)
 
+# YANGI QO'SHILGAN ROUTE: Batafsil o'qish uchun
+@app.route('/news/<int:id>')
+def news_detail(id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or user.is_blocked:
+        session.clear()
+        return redirect(url_for('login'))
+
+    news_item = News.query.get_or_404(id)
+    return render_template('details.html', news=news_item)
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     error = None
