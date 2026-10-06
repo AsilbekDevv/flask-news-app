@@ -152,25 +152,20 @@ def handle_message(data):
             'time': time_str
         }, broadcast=True)
 
-
-@app.route('/clear_messages', methods=['POST'])
-def clear_messages():
-    # Adminlik huquqini tekshirish
-    if not session.get('is_admin'):
-        flash("Sizda xabarlarni o'chirish huquqi yo'q!", "danger")
-        return redirect(url_for('chat'))
-
-    try:
-        # Bazadagi barcha xabarlarni o'chirish
-        ChatMessage.query.delete()
-        db.session.commit()
-        
-        # Barcha ulangan foydalanuvchilar ekranidan xabarlarni o'chirish signali
-        socketio.emit('chat_cleared', broadcast=True)
-    except Exception as e:
-        db.session.rollback()
-
-    return redirect(url_for('chat'))
+# YANGI QO'SHILGAN QISM: Xabarlarni tozalash (Socket.IO orqali)
+@socketio.on('request_clear_chat')
+def handle_clear_chat():
+    # Faqat admin xabarlarni tozalay olishi uchun tekshiruv
+    if session.get('is_admin'):
+        try:
+            # Bazadagi barcha xabarlarni o'chirish
+            ChatMessage.query.delete()
+            db.session.commit()
+            
+            # Barcha ulangan foydalanuvchilar ekranidan xabarlarni o'chirish signali
+            emit('chat_cleared', broadcast=True)
+        except Exception as e:
+            db.session.rollback()
 
 # --------------------------------
 

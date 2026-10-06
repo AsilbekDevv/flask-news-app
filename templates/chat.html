@@ -24,13 +24,11 @@
                     <span class="badge bg-success">Onlayn</span>
                 </div>
 
-                <!-- Faqat Adminlar uchun tozalash tugmasi -->
+                <!-- Faqat Adminlar uchun tozalash tugmasi (Forma olib tashlandi, SocketIO orqali ishlaydi) -->
                 {% if session.get('is_admin') %}
-                    <form action="{{ url_for('clear_messages') }}" method="POST" onsubmit="return confirm('Haqiqatan ham barcha xabarlarni o\'chirmoqchimisiz?');" class="m-0">
-                        <button type="submit" class="btn btn-danger btn-sm fw-bold shadow-sm">
-                            🗑️ Chatni tozalash
-                        </button>
-                    </form>
+                    <button type="button" onclick="clearChatConfirm()" class="btn btn-danger btn-sm fw-bold shadow-sm">
+                        🗑️ Chatni tozalash
+                    </button>
                 {% endif %}
             </div>
             
@@ -122,9 +120,20 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         });
 
-        // Admin chatni tozalaganda ekrandagi xabarlarni birdan yo'qotish
+        // --- YANGI QO'SHILGAN QISM ---
+
+        // Admin tozalash tugmasini bosganda ishlaydi
+        function clearChatConfirm() {
+            if (confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz?")) {
+                socket.emit('request_clear_chat');
+            }
+        }
+
+        // Admin chatni tozalaganda ekrandagi xabarlarni barcha foydalanuvchilarda birdan yo'qotish
         socket.on('chat_cleared', function() {
-            chatBox.innerHTML = '';
+            if (chatBox) {
+                chatBox.innerHTML = '';
+            }
         });
     </script>
 </body>
