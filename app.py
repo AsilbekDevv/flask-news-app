@@ -28,6 +28,11 @@ class User(db.Model):
     is_main_admin = db.Column(db.Boolean, default=False) # Asosiy admin bayrog'i
     is_blocked = db.Column(db.Boolean, default=False)    # Bloklanganlik holati
 
+    @property
+    def user_code(self):
+        # Bazadagi ID ga 1000 qo'shib 4 xonali unikal ID hosil qiladi (1001, 1002, ...)
+        return 1000 + self.id
+
 class News(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -56,7 +61,6 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    # Sessiyadagi foydalanuvchi bloklanmaganini tekshirish
     user = User.query.get(session['user_id'])
     if not user or user.is_blocked:
         session.clear()
@@ -204,7 +208,7 @@ def add_user():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        role = request.form['role'] # 'user' yoki 'admin'
+        role = request.form['role']
 
         if User.query.filter_by(username=username).first():
             error = "Bu foydalanuvchi nomi allaqachon mavjud!"
@@ -230,7 +234,6 @@ def toggle_block_user(id):
 
     user = User.query.get_or_404(id)
 
-    # Main admint yoki o'zini bloklash taqiqlanadi
     if user.is_main_admin or user.id == session['user_id']:
         return redirect(url_for('manage_users'))
 
@@ -245,7 +248,6 @@ def delete_user(id):
 
     user = User.query.get_or_404(id)
 
-    # Main adminni yoki o'zini o'chirish taqiqlanadi
     if user.is_main_admin or user.id == session['user_id']:
         return redirect(url_for('manage_users'))
 

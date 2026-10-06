@@ -29,7 +29,7 @@
                 <table class="table table-striped align-middle mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th>ID</th>
+                            <th style="width: 70px;">T/r</th>
                             <th>Foydalanuvchi Nomi</th>
                             <th>Roli</th>
                             <th>Holati</th>
@@ -39,9 +39,16 @@
                     <tbody>
                         {% for u in users %}
                             <tr>
-                                <td>{{ u.id }}</td>
+                                <!-- Ketma-ket tartib raqami (1, 2, 3...) -->
+                                <td class="fw-bold text-muted">{{ loop.index }}</td>
                                 <td>
                                     <strong>{{ u.username }}</strong>
+                                    
+                                    <!-- 4 xonali unikal ID -->
+                                    <span class="badge bg-light text-dark border ms-2">
+                                        ID: {{ u.user_code }}
+                                    </span>
+
                                     {% if u.is_main_admin %}
                                         <span class="badge bg-danger ms-1">MAIN ADMIN</span>
                                     {% endif %}
@@ -72,7 +79,7 @@
                                         <span class="text-muted small">Himoyalangan</span>
                                     {% endif %}
                                 </td>
-                                </tr>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
