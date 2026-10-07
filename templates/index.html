@@ -80,21 +80,22 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS (Dropdown menyu ishlashi uchun zarur) -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Socket.IO JavaScript Mantiqi -->
     <script>
         const socket = io();
-
-        /* FAQUAT ADMINLAR UCHUN MANTIQ */
-        {% if session.get('is_admin') %}
         let notifCount = 0;
 
         // Yangi foydalanuvchi ro'yxatdan o'tganda keladigan hodisani tinglash
         socket.on('notification_new_user', function(data) {
-            const notifBadge = document.getElementById('notif-badge');
             const notifList = document.getElementById('notif-list');
+
+            // Agar foydalanuvchi admin bo'lmasa (notif-list elementi sahifada yo'q bo'lsa), kod to'xtaydi
+            if (!notifList) return;
+
+            const notifBadge = document.getElementById('notif-badge');
             const emptyNotif = document.getElementById('empty-notif');
 
             if (emptyNotif) {
@@ -120,9 +121,7 @@
                 </div>
             `;
 
-            if (notifList) {
-                notifList.insertBefore(li, notifList.children[1]);
-            }
+            notifList.insertBefore(li, notifList.children[1]);
         });
 
         // Yurakcha tugmasi bosilganda qizil sonni nolga tushirish
@@ -134,7 +133,6 @@
                 notifBadge.innerText = '0';
             }
         }
-        {% endif %}
     </script>
 </body>
 </html>
