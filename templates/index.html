@@ -5,19 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yangiliklar Portali</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Socket.IO Kutubxonasi -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
+        <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand fw-bold" href="/">Yangiliklar Portali</a>
-            <div>
-                <span class="text-light me-3">Foydalanuvchi: <strong>{{ session['username'] }}</strong></span>
+            
+            <div class="d-flex align-items-center">
+                <span class="text-light me-3 d-none d-md-inline">Foydalanuvchi: <strong>{{ session['username'] }}</strong></span>
+
+                <!-- INSTAGRAM USLUBIDAGI YURAKCHA BILDIRISHNOMA TUGMASI -->
+                <div class="dropdown me-3 position-relative">
+                    <button class="btn btn-outline-light position-relative p-2 rounded-circle d-flex align-items-center justify-content-center" type="button" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" onclick="resetNotifBadge()" style="width: 38px; height: 38px;">
+                        <!-- SVG Yurakcha Ikonkasi -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-heart-fill text-danger" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+                        </svg>
+
+                        <!-- Qizil Nishon (Yangi xabarlar soni) -->
+                        <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.7em;">
+                            0
+                        </span>
+                    </button>
+
+                    <!-- Bildirishnomalar Ro'yxati Dropdown -->
+                    <ul class="dropdown-menu dropdown-menu-end shadow p-2" aria-labelledby="notifDropdown" id="notif-list" style="width: 300px; max-height: 380px; overflow-y: auto;">
+                        <li class="dropdown-header border-bottom fw-bold mb-2 pb-2 text-dark">Bildirishnomalar</li>
+                        <li id="empty-notif" class="text-muted text-center py-3" style="font-size: 0.88em;">Hozircha bildirishnomalar yo'q</li>
+                    </ul>
+                </div>
                 
-                <!-- YANGI QO'SHILGAN CHAT TUGMASI -->
-                <a href="/chat" class="btn btn-info btn-sm me-2 text-white fw-bold">💬 Jonli Chat</a>
+                <a href="/chat" class="btn btn-info btn-sm me-2 text-white fw-bold">💬 Chat</a>
 
                 {% if session.get('is_admin') %}
-                    <a href="/admin" class="btn btn-warning btn-sm me-2">Admin Panel</a>
+                    <a href="/admin" class="btn btn-warning btn-sm me-2">Admin</a>
                 {% endif %}
                 
                 <a href="/logout" class="btn btn-outline-danger btn-sm">Chiqish</a>
@@ -42,10 +65,7 @@
                             <h5 class="card-title fw-bold">
                                 <a href="/news/{{ news.id }}" class="text-decoration-none text-dark">{{ news.title }}</a>
                             </h5>
-                            <!-- Matnni uzunligini qisqartirish uchun jinja filtri qo'shishingiz ham mumkin, masalan: {{ news.content[:100] }}... -->
                             <p class="card-text text-muted mb-4">{{ news.content }}</p>
-                            
-                            <!-- Batafsil tugmasi doim pastda turishi uchun mt-auto ishlatildi -->
                             <a href="/news/{{ news.id }}" class="btn btn-primary mt-auto align-self-start">Batafsil o'qish &rarr;</a>
                         </div>
                     </div>
@@ -57,5 +77,59 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- Bootstrap JS (Dropdown menyu ishlashi uchun zarur) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Socket.IO JavaScript Mantiqi -->
+    <script>
+        const socket = io();
+
+        let notifCount = 0;
+
+        // Yangi foydalanuvchi ro'yxatdan o'tganda keladigan hodisani tinglash
+        socket.on('notification_new_user', function(data) {
+            const notifBadge = document.getElementById('notif-badge');
+            const notifList = document.getElementById('notif-list');
+            const emptyNotif = document.getElementById('empty-notif');
+
+            // Agar ro'yxat bo'sh bo'lsa, "Bildirishnomalar yo'q" matnini olib tashlaymiz
+            if (emptyNotif) {
+                emptyNotif.remove();
+            }
+
+            // Bildirishnomalar sonini oshirish va qizil belgini ko'rsatish
+            notifCount++;
+            notifBadge.innerText = notifCount;
+            notifBadge.classList.remove('d-none');
+
+            // Yangi bildirishnoma elementini yaratish
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div class="dropdown-item p-2 border-bottom rounded bg-light mb-1" style="white-space: normal;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fs-5">👤</span>
+                        <div>
+                            <strong class="d-block text-dark" style="font-size: 0.88em;">${data.username}</strong>
+                            <small class="text-muted" style="font-size: 0.78em;">Yangi foydalanuvchi ro'yxatdan o'tdi • ${data.time}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Ro'yxatning eng tepasiga yangi bildirishnomani joylash
+            notifList.insertBefore(li, notifList.children[1]);
+        });
+
+        // Yurakcha tugmasi bosilganda qizil sonni nolga tushirish
+        function resetNotifBadge() {
+            notifCount = 0;
+            const notifBadge = document.getElementById('notif-badge');
+            if (notifBadge) {
+                notifBadge.classList.add('d-none');
+                notifBadge.innerText = '0';
+            }
+        }
+    </script>
 </body>
 </html>

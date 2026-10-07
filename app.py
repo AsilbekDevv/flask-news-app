@@ -129,10 +129,8 @@ def handle_message(data):
     message_text = data.get('msg')
 
     if message_text:
-        # Hozirgi O'zbekiston vaqtini olish
         current_time = get_uzbekistan_time()
 
-        # Xabarni bazaga saqlash
         new_msg = ChatMessage(
             user_id=user_id, 
             username=username, 
@@ -142,32 +140,25 @@ def handle_message(data):
         db.session.add(new_msg)
         db.session.commit()
 
-        # Vaqtni formatlash (HH:MM)
         time_str = current_time.strftime('%H:%M')
 
-        # Xabarni barcha foydalanuvchilarga tarqatish
         emit('receive_message', {
             'user': username, 
             'msg': message_text,
             'time': time_str
         }, broadcast=True)
 
-# YANGI QO'SHILGAN QISM: Xabarlarni tozalash (Socket.IO orqali)
 @socketio.on('request_clear_chat')
 def handle_clear_chat():
-    # Faqat admin xabarlarni tozalay olishi uchun tekshiruv
     if session.get('is_admin'):
         try:
-            # Bazadagi barcha xabarlarni o'chirish
             ChatMessage.query.delete()
             db.session.commit()
-            
-            # Barcha ulangan foydalanuvchilar ekranidan xabarlarni o'chirish signali
             emit('chat_cleared', broadcast=True)
         except Exception as e:
             db.session.rollback()
 
-# --------------------------------
+# --- RO'YXATDAN O'TISH ---
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -186,6 +177,15 @@ def register():
             )
             db.session.add(new_user)
             db.session.commit()
+
+            # --- YANGI BILDIRISHNOMA TARQATISH ---
+            now_time = get_uzbekistan_time().strftime('%H:%M')
+            socketio.emit('notification_new_user', {
+                'username': username,
+                'time': now_time
+            })
+            # ------------------------------------
+
             return redirect(url_for('login'))
 
     return render_template('register.html', error=error)
