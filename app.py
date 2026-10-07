@@ -178,13 +178,13 @@ def register():
             db.session.add(new_user)
             db.session.commit()
 
-            # --- YANGI BILDIRISHNOMA TARQATISH ---
+            # --- BILDIRISHNOMA YUBORISH ---
             now_time = get_uzbekistan_time().strftime('%H:%M')
             socketio.emit('notification_new_user', {
                 'username': username,
                 'time': now_time
             })
-            # ------------------------------------
+            # ------------------------------
 
             return redirect(url_for('login'))
 

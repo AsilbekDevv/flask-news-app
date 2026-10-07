@@ -16,7 +16,8 @@
             <div class="d-flex align-items-center">
                 <span class="text-light me-3 d-none d-md-inline">Foydalanuvchi: <strong>{{ session['username'] }}</strong></span>
 
-                <!-- INSTAGRAM USLUBIDAGI YURAKCHA BILDIRISHNOMA TUGMASI -->
+                <!-- FAQAT ADMINLAR UCHUN YURAKCHA BILDIRISHNOMA TUGMASI -->
+                {% if session.get('is_admin') %}
                 <div class="dropdown me-3 position-relative">
                     <button class="btn btn-outline-light position-relative p-2 rounded-circle d-flex align-items-center justify-content-center" type="button" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" onclick="resetNotifBadge()" style="width: 38px; height: 38px;">
                         <!-- SVG Yurakcha Ikonkasi -->
@@ -36,6 +37,7 @@
                         <li id="empty-notif" class="text-muted text-center py-3" style="font-size: 0.88em;">Hozircha bildirishnomalar yo'q</li>
                     </ul>
                 </div>
+                {% endif %}
                 
                 <a href="/chat" class="btn btn-info btn-sm me-2 text-white fw-bold">💬 Chat</a>
 
@@ -85,6 +87,8 @@
     <script>
         const socket = io();
 
+        /* FAQUAT ADMINLAR UCHUN MANTIQ */
+        {% if session.get('is_admin') %}
         let notifCount = 0;
 
         // Yangi foydalanuvchi ro'yxatdan o'tganda keladigan hodisani tinglash
@@ -93,17 +97,16 @@
             const notifList = document.getElementById('notif-list');
             const emptyNotif = document.getElementById('empty-notif');
 
-            // Agar ro'yxat bo'sh bo'lsa, "Bildirishnomalar yo'q" matnini olib tashlaymiz
             if (emptyNotif) {
                 emptyNotif.remove();
             }
 
-            // Bildirishnomalar sonini oshirish va qizil belgini ko'rsatish
             notifCount++;
-            notifBadge.innerText = notifCount;
-            notifBadge.classList.remove('d-none');
+            if (notifBadge) {
+                notifBadge.innerText = notifCount;
+                notifBadge.classList.remove('d-none');
+            }
 
-            // Yangi bildirishnoma elementini yaratish
             const li = document.createElement('li');
             li.innerHTML = `
                 <div class="dropdown-item p-2 border-bottom rounded bg-light mb-1" style="white-space: normal;">
@@ -117,8 +120,9 @@
                 </div>
             `;
 
-            // Ro'yxatning eng tepasiga yangi bildirishnomani joylash
-            notifList.insertBefore(li, notifList.children[1]);
+            if (notifList) {
+                notifList.insertBefore(li, notifList.children[1]);
+            }
         });
 
         // Yurakcha tugmasi bosilganda qizil sonni nolga tushirish
@@ -130,6 +134,7 @@
                 notifBadge.innerText = '0';
             }
         }
+        {% endif %}
     </script>
 </body>
 </html>
