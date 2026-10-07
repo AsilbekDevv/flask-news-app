@@ -158,6 +158,70 @@ def handle_clear_chat():
         except Exception as e:
             db.session.rollback()
 
+# --- PROFIL YO'NALISHLARI (YANGI) ---
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or user.is_blocked:
+        session.clear()
+        return redirect(url_for('login'))
+
+    error = None
+    success = None
+
+    if request.method == 'POST':
+        new_username = request.form.get('username', '').strip()
+        new_password = request.form.get('password', '').strip()
+
+        # Login band emasligini tekshirish (foydalanuvchining o'zidan tashqari)
+        existing_user = User.query.filter(User.username == new_username, User.id != user.id).first()
+        
+        if existing_user:
+            error = "Bu login allaqachon band! Iltimos, boshqa login tanlang."
+        else:
+            if new_username:
+                user.username = new_username
+                session['username'] = new_username  # Sessiyadagi nomni ham yangilaymiz
+            
+            # Agar yangi parol yozilgan bo'lsa, uni hashlash
+            if new_password:
+                user.password = generate_password_hash(new_password)
+            
+            db.session.commit()
+            
+            # Agar chatdagi xabarlari bo'lsa, eski nomda qolib ketmasligi uchun ularni ham yangilaymiz
+            ChatMessage.query.filter_by(user_id=user.id).update({'username': new_username})
+            db.session.commit()
+            
+            success = "Profil ma'lumotlaringiz muvaffaqiyatli saqlandi!"
+
+    return render_template('profile.html', user=user, error=error, success=success)
+
+@app.route('/profile/delete', methods=['POST'])
+def delete_profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if user:
+        if user.is_main_admin:
+            flash("Asosiy admin profilini o'chirib bo'lmaydi!", "danger")
+            return redirect(url_for('profile'))
+        
+        # O'chirilayotgan foydalanuvchining chatdagi xabarlarini ham bazadan tozalaymiz (xatolik bermasligi uchun)
+        ChatMessage.query.filter_by(user_id=user.id).delete()
+        
+        # Foydalanuvchini bazadan o'chirish
+        db.session.delete(user)
+        db.session.commit()
+    
+    session.clear()
+    return redirect(url_for('login'))
+
 # --- RO'YXATDAN O'TISH ---
 
 @app.route('/register', methods=['GET', 'POST'])
